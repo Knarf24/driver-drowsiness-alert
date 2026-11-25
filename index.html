@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Driver Drowsiness Alert</title>
+  <meta name="description" content="A webcam co-pilot that sounds an alarm when your eyes close or your head drops. Runs fully in your browser.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23f5b301'/%3E%3Cpath d='M12 34c6-8 13-12 20-12s14 4 20 12c-6 8-13 12-20 12s-14-4-20-12z' fill='%23111'/%3E%3Ccircle cx='32' cy='34' r='7' fill='%23f5b301'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"></span>
+      <div>
+        <h1>Driver Drowsiness Alert</h1>
+        <p class="sub">Your webcam co-pilot. Alarms when your eyes close or your head drops.</p>
+      </div>
+    </div>
+    <a class="gh" href="https://github.com/Knarf24/driver-drowsiness-alert" target="_blank" rel="noopener">View code</a>
+  </header>
+
+  <main class="layout">
+    <section class="stage" aria-label="Camera">
+      <div class="screen" id="screen">
+        <video id="video" playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="flash" id="flash" aria-hidden="true"></div>
+
+        <div class="intro" id="intro">
+          <div class="eye-art" aria-hidden="true"><span></span></div>
+          <h2>Stay awake behind the wheel</h2>
+          <p>Mount your phone or laptop so the camera sees your face, then press start. The app learns what your open eyes look like for 3 seconds and then watches for long eye closures, a drooping or tilting head, yawns, and looking away.</p>
+          <button class="btn primary" id="startBtn">Start monitoring</button>
+          <p class="fine">Everything runs on your device. No video leaves your browser.</p>
+        </div>
+
+        <div class="banner" id="banner" hidden></div>
+        <div class="status-pill" id="statusPill" hidden><span class="dot"></span><span id="statusText">Starting</span></div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="stopBtn" disabled>Stop</button>
+        <button class="btn" id="recalBtn" disabled>Recalibrate</button>
+        <button class="btn" id="testBtn">Test alarm</button>
+        <button class="btn ghost" id="silenceBtn" hidden>Silence alarm</button>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="gauge-card">
+        <div class="gauge" id="gauge" style="--level:0">
+          <div class="gauge-inner">
+            <span class="gauge-num" id="alertness">--</span>
+            <span class="gauge-label">alertness</span>
+          </div>
+        </div>
+        <p class="state" id="stateText">Not running</p>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><span class="k">Eye openness</span><span class="v" id="earVal">--</span><div class="bar"><i id="earBar"></i></div></div>
+        <div class="stat"><span class="k">Blinks / min</span><span class="v" id="bpmVal">--</span></div>
+        <div class="stat"><span class="k">Eyes closed (last min)</span><span class="v" id="perclosVal">--</span></div>
+        <div class="stat"><span class="k">Head tilt (side)</span><span class="v" id="rollVal">--</span></div>
+        <div class="stat"><span class="k">Head nod (up/down)</span><span class="v" id="pitchVal">--</span></div>
+        <div class="stat"><span class="k">Yawns</span><span class="v" id="yawnVal">0</span></div>
+        <div class="stat"><span class="k">Alarms</span><span class="v" id="alarmVal">0</span></div>
+        <div class="stat"><span class="k">Drive time</span><span class="v" id="timeVal">0:00</span></div>
+      </div>
+
+      <details class="settings" open>
+        <summary>Settings</summary>
+        <label>Alarm after eyes closed for <b id="closedSecOut">1.5</b> s
+          <input type="range" id="closedSec" min="0.5" max="4" step="0.1" value="1.5"></label>
+        <label>Eye sensitivity <b id="sensOut">70%</b>
+          <input type="range" id="sens" min="50" max="90" step="1" value="70"></label>
+        <label>Head drop / tilt angle <b id="tiltOut">20°</b>
+          <input type="range" id="tilt" min="10" max="40" step="1" value="20"></label>
+        <label>Alarm volume <b id="volOut">80%</b>
+          <input type="range" id="vol" min="0" max="100" step="5" value="80"></label>
+        <label class="check"><input type="checkbox" id="voiceOn" checked> Spoken warnings</label>
+        <label class="check"><input type="checkbox" id="meshOn" checked> Show face tracking</label>
+      </details>
+
+      <div class="log-card">
+        <h3>Event log</h3>
+        <ol id="log"><li class="muted">Events appear here once you start.</li></ol>
+      </div>
+    </aside>
+  </main>
+
+  <section class="about">
+    <h2>How it works</h2>
+    <div class="how">
+      <div><h3>1. Find the face</h3><p>Google's MediaPipe Face Landmarker tracks 478 points on your face from the webcam, about 30 times a second.</p></div>
+      <div><h3>2. Measure the eyes</h3><p>The eye aspect ratio (height of the eye divided by its width) drops when the eye closes. Short dips count as blinks; long dips trigger the alarm.</p></div>
+      <div><h3>3. Watch the head</h3><p>The 3D head pose shows a nodding or sideways-slumping head. Mouth opening detects yawns, and a missing face means you looked away.</p></div>
+      <div><h3>4. Wake you up</h3><p>A loud siren plus a spoken warning from your browser's text-to-speech, and the screen flashes red.</p></div>
+    </div>
+    <p class="credit">Built by combining four GeeksforGeeks Python projects, rebuilt for the browser:
+      <a href="https://www.geeksforgeeks.org/python/face-detection-using-python-and-opencv-with-webcam/" target="_blank" rel="noopener">Face Detection with Webcam</a>,
+      <a href="https://www.geeksforgeeks.org/machine-learning/python-eye-blink-detection-project/" target="_blank" rel="noopener">Eye Blink Detection</a>,
+      <a href="https://www.geeksforgeeks.org/python/determine-the-face-tilt-using-opencv-python/" target="_blank" rel="noopener">Determine Face Tilt</a> and
+      <a href="https://www.geeksforgeeks.org/python/convert-text-speech-python/" target="_blank" rel="noopener">Convert Text to Speech</a>.</p>
+    <p class="credit warn">This is a demo and a safety aid, not a substitute for rest. If you feel tired, pull over.</p>
+  </section>
+
+  <footer class="foot">Made by Frank Ncube · <a href="https://knarf24.github.io/project-hub/">More projects</a></footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
